@@ -1,0 +1,40 @@
+name: Deploy FastAPI App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: eerotarri.fi
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 3222
+          script: |
+            echo "🔄 Pulling latest code..."
+            cd /home/deploy/App/fridge-item-detector
+            git pull origin main
+
+            echo "🐍 Activating virtualenv..."
+            if [ ! -d "venv" ]; then python3 -m venv venv; fi
+            source venv/bin/activate
+
+            echo "📦 Installing Python dependencies..."
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            echo "🚀 Restarting FastAPI app via PM2..."
+            pm2 restart fastapi-app || pm2 start venv/bin/uvicorn --name fastapi-app -- app:app --host 0.0.0.0 --port 8000
+
+            echo "💾 Saving PM2 state..."
+            pm2 save
