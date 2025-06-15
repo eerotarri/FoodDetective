@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, UploadFile, File
 from google.cloud import vision
+from fastapi.middleware.cors import CORSMiddleware
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google-credentials.json"
 
@@ -8,6 +9,14 @@ app = FastAPI()
 client = vision.ImageAnnotatorClient()
 
 CONFIDENCE_THRESHOLD = 0.7
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust as needed for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/detect")
 async def detect_food_items(file: UploadFile = File(...)):
