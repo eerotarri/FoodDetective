@@ -16,3 +16,6 @@ env/
 
 # Model weights
 *.pt
+
+# Secrets
+google-credentials.json

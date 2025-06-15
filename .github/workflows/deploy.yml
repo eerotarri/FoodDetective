@@ -22,7 +22,7 @@ jobs:
           port: 3222
           script: |
             echo "🔄 Pulling latest code..."
-            cd /home/deploy/App/fridge-item-detector
+            cd /home/deploy/App/FoodDetective
             git pull origin main
 
             echo "🐍 Activating virtualenv..."

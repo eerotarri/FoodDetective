@@ -1,41 +1,43 @@
+import os
 from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from ultralytics import YOLO
-from PIL import Image
-import io
+from google.cloud import vision
 
-# Initialize FastAPI app
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google-credentials.json"
+
 app = FastAPI()
+client = vision.ImageAnnotatorClient()
 
-# Allow frontend (React) access later
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # change to specific domain in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+CONFIDENCE_THRESHOLD = 0.7
 
-# Load the model (you can use yolov5s.pt or yolov8n.pt)
-model = YOLO("yolov8n.pt")  # Smallest model; works without GPU
+@app.post("/detect")
+async def detect_food_items(file: UploadFile = File(...)):
+    content = await file.read()
+    image = vision.Image(content=content)
 
-@app.post("/detect/")
-async def detect_items(file: UploadFile = File(...)):
-    try:
-        image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    # 1. Web Detection
+    web_entities = []
+    web_response = client.web_detection(image=image)
+    if web_response.web_detection and web_response.web_detection.web_entities:
+        web_entities = [
+            entity.description.lower()
+            for entity in web_response.web_detection.web_entities
+            if entity.score >= 0.6 and entity.description
+        ]
 
-        # Run YOLOv8 inference
-        results = model(image)
+    # # 2. Text Detection (OCR)
+    # ocr_texts = []
+    # text_response = client.text_detection(image=image)
+    # if text_response.text_annotations:
+    #     # The first annotation is usually the full block
+    #     ocr_texts = [
+    #         annotation.description.lower()
+    #         for annotation in text_response.text_annotations[1:]  # skip full block
+    #     ]
 
-        # Extract labels
-        detected_items = []
-        for box in results[0].boxes:
-            cls_id = int(box.cls[0].item())
-            label = results[0].names[cls_id]
-            detected_items.append(label)
+    # Combine and deduplicate
+    combined = web_entities # + ocr_texts
+    unique = list(dict.fromkeys(combined))  # Preserves order
 
-        return {"items": list(set(detected_items))}
-
-    except Exception as e:
-        return {"error": str(e)}
+    return {
+        "raw_results": unique
+    }
