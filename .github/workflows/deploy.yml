@@ -34,7 +34,11 @@ jobs:
             pip install -r requirements.txt
 
             echo "🚀 Restarting FastAPI app via PM2..."
-            pm2 restart food-detector || pm2 start venv/bin/uvicorn --name food-detector -- app:app --host 0.0.0.0 --port 8000
+            pm2 restart food-detective || pm2 start venv/bin/uvicorn \
+                                                --name food-detective \
+                                                --interpreter python3 \
+                                                -- app:app --host 0.0.0.0 --port 8000
+
 
             echo "💾 Saving PM2 state..."
             pm2 save
